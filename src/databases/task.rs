@@ -11,11 +11,13 @@ use crate::models::user::LoginInfo;
 use crate::constants;
 
 pub fn add_task(content: &str) -> Result<()>{
-    let user_id = get_current_user().id;
-    if user_id == 0 {
+    let current_user = get_current_user();
+    if current_user.is_none() {
         println!("Please login.");
         return Ok(());
     }
+
+    let user_id = current_user.unwrap().id;
 
     let path = file_path();
     OpenOptions::new()
@@ -45,11 +47,13 @@ pub fn add_task(content: &str) -> Result<()>{
 }
 
 pub fn finish_task(id: i32) -> Result<()>{
-    let user_id = get_current_user().id;
-    if user_id == 0 {
+    let current_user = get_current_user();
+    if current_user.is_none() {
         println!("Please login.");
         return Ok(());
     }
+
+    let user_id = current_user.unwrap().id;
 
     let path = file_path();
 
@@ -80,11 +84,13 @@ pub fn finish_task(id: i32) -> Result<()>{
 }
 
 pub fn get_tasks() -> Result<()> {
-    let user_id = get_current_user().id;
-    if user_id == 0 {
+    let current_user = get_current_user();
+    if current_user.is_none() {
         println!("Please login.");
         return Ok(());
     }
+
+    let user_id = current_user.unwrap().id;
 
     let path = file_path();
 
@@ -132,11 +138,12 @@ pub fn get_tasks() -> Result<()> {
 }
 
 pub fn get_unfinished_tasks() -> Result<()> {
-    let user_id = get_current_user().id;
-    if user_id == 0 {
+    let current_user = get_current_user();
+    if current_user.is_none() {
         println!("Please login.");
         return Ok(());
     }
+    let user_id = current_user.unwrap().id;
 
     let path = file_path();
 
@@ -170,8 +177,12 @@ fn file_path() -> &'static Path {
 }
 
 fn get_metadata(path: &Path) -> Result<Vec<Task>> {
-    let string_data = fs::read_to_string(&path).expect("Unable to read file");
     let mut tasks: Vec<Task> = vec![];
+    if fs::metadata(&path).is_err() {
+        return Ok(tasks);
+    }
+
+    let string_data = fs::read_to_string(&path).expect("Unable to read file");
     if fs::metadata(&path).unwrap().len() != 0 {
         tasks = serde_json::from_str(&string_data)?;
     }
@@ -187,13 +198,21 @@ fn get_singular_plural(count: usize, word: String) -> String {
     }
 }
 
-fn get_current_user() -> LoginInfo {
+fn get_current_user() -> Option<LoginInfo> {
     let cache_path = Path::new(constants::CACHE_FILE);
+    if fs::metadata(constants::CACHE_FILE).is_err() {
+        return None;
+    }
     let string_data = fs::read_to_string(&cache_path).expect("Unable to read file");
     let mut login_info = LoginInfo::new();
     if fs::metadata(&cache_path).unwrap().len() != 0 {
         login_info = serde_json::from_str(&string_data).expect("Unable get json data");
     }
 
-    login_info
+    // 用户退出登录，恢复 LoginInfo 结构为初始状态，此时 id 值为 0
+    if login_info.id == 0 {
+        return None;
+    }
+
+    Some(login_info)
 }

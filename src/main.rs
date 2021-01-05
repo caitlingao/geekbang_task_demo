@@ -11,6 +11,11 @@ mod databases;
 mod models;
 
 fn main() {
+    // 预先创建 tmp 目录，以便于存储 task 数据及登录缓存数据
+    if fs::metadata(TMP_DIR).is_err() {
+        fs::create_dir(TMP_DIR);
+    }
+
     let conf = ApplicationArguments::from_args();
     if let Some(command) = conf.command {
         match command {

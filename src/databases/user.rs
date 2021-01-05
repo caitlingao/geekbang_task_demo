@@ -49,6 +49,11 @@ pub fn login(email: &str, password: &str) -> Result<(), Box<dyn Error>>{
 
 pub fn logout() -> Result<(), Box<dyn Error>>{
     let cache_path = Path::new(constants::CACHE_FILE);
+    if fs::metadata(&cache_path).is_err() {
+        println!("logout success.");
+        return Ok(());
+    }
+
     let login_info = LoginInfo::new();
     let cache_json = serde_json::to_string(&login_info)?;
 
