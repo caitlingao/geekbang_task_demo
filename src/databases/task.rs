@@ -6,12 +6,17 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::models::Task;
-
-const FILE_NAME: &str = "tasks.json";
-const SINGULAR_PLURAL_THRESHOLD: usize = 1;
+use crate::models::task::Task;
+use crate::models::user::LoginInfo;
+use crate::constants;
 
 pub fn add_task(content: &str) -> Result<()>{
+    let user_id = get_current_user().id;
+    if user_id == 0 {
+        println!("Please login.");
+        return Ok(());
+    }
+
     let path = file_path();
     OpenOptions::new()
         .read(true)
@@ -21,8 +26,8 @@ pub fn add_task(content: &str) -> Result<()>{
 
     match get_metadata(path) {
         Ok(mut tasks) => {
-            let id = tasks.len()  as i32 + 1;
-            let task = Task::new(content, id);
+            let id = tasks.len()  as i32 + constants::TASK_ID_INCREMENT_THRESHOLD;
+            let task = Task::new(content, id, user_id);
             tasks.push(task);
 
             let json: String = serde_json::to_string(&tasks)?;
@@ -40,11 +45,17 @@ pub fn add_task(content: &str) -> Result<()>{
 }
 
 pub fn finish_task(id: i32) -> Result<()>{
+    let user_id = get_current_user().id;
+    if user_id == 0 {
+        println!("Please login.");
+        return Ok(());
+    }
+
     let path = file_path();
 
     match get_metadata(path) {
         Ok(mut tasks) => {
-            match tasks.iter_mut().find(|task| task.id == id) {
+            match tasks.iter_mut().find(|task| task.id == id && user_id == user_id) {
                 Some(task) => {
                     task.finished = true;
                     task.updated_at = chrono::offset::Utc::now();
@@ -69,22 +80,28 @@ pub fn finish_task(id: i32) -> Result<()>{
 }
 
 pub fn get_tasks() -> Result<()> {
+    let user_id = get_current_user().id;
+    if user_id == 0 {
+        println!("Please login.");
+        return Ok(());
+    }
+
     let path = file_path();
 
     match get_metadata(path) {
         Ok(tasks) => {
             let finished_tasks: Vec<Task> = tasks
                 .iter()
-                .filter(|task| task.finished)
+                .filter(|task| task.finished && task.user_id == user_id)
                 .cloned()
                 .collect();
             let unfinished_tasks: Vec<Task> = tasks
                 .iter()
-                .filter(|task| !task.finished)
+                .filter(|task| !task.finished && task.user_id == user_id)
                 .cloned()
                 .collect();
-            let total = tasks.len();
             let finished_count = finished_tasks.len();
+            let total = finished_count + unfinished_tasks.len();
 
             for task in unfinished_tasks.iter() {
                 println!("{id}. {content}", id = task.id, content = task.content);
@@ -115,13 +132,19 @@ pub fn get_tasks() -> Result<()> {
 }
 
 pub fn get_unfinished_tasks() -> Result<()> {
+    let user_id = get_current_user().id;
+    if user_id == 0 {
+        println!("Please login.");
+        return Ok(());
+    }
+
     let path = file_path();
 
     match get_metadata(path) {
         Ok(tasks) => {
             let unfinished_tasks: Vec<Task> = tasks
                 .iter()
-                .filter(|task| !task.finished)
+                .filter(|task| !task.finished && task.user_id == user_id)
                 .cloned()
                 .collect();
             let total = unfinished_tasks.len();
@@ -143,7 +166,7 @@ pub fn get_unfinished_tasks() -> Result<()> {
 }
 
 fn file_path() -> &'static Path {
-    Path::new(FILE_NAME)
+    Path::new(constants::TASKS_FILE)
 }
 
 fn get_metadata(path: &Path) -> Result<Vec<Task>> {
@@ -157,9 +180,20 @@ fn get_metadata(path: &Path) -> Result<Vec<Task>> {
 }
 
 fn get_singular_plural(count: usize, word: String) -> String {
-    if count > SINGULAR_PLURAL_THRESHOLD {
+    if count > constants::SINGULAR_PLURAL_THRESHOLD as usize {
         format!("{}s", word)
     } else {
         format!("{}", word)
     }
+}
+
+fn get_current_user() -> LoginInfo {
+    let cache_path = Path::new(constants::CACHE_FILE);
+    let string_data = fs::read_to_string(&cache_path).expect("Unable to read file");
+    let mut login_info = LoginInfo::new();
+    if fs::metadata(&cache_path).unwrap().len() != 0 {
+        login_info = serde_json::from_str(&string_data).expect("Unable get json data");
+    }
+
+    login_info
 }
