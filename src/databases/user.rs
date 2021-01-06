@@ -11,7 +11,7 @@ use crate::constants;
 pub fn login(email: &str, password: &str) -> Result<(), Box<dyn Error>>{
     let path = Path::new(constants::USER_FILE);
 
-    let string_data = fs::read_to_string(&path).expect("Unable to read file");
+    let string_data = fs::read_to_string(&path).expect(constants::UNABLE_TO_READ_FILE);
     let mut users: Vec<User> = vec![];
     if fs::metadata(&path).unwrap().len() != 0 {
         users = serde_json::from_str(&string_data)?;
@@ -25,7 +25,7 @@ pub fn login(email: &str, password: &str) -> Result<(), Box<dyn Error>>{
                 .create(true)
                 .open(&cache_path);
 
-            let string_data = fs::read_to_string(&cache_path).expect("Unable to read file");
+            let string_data = fs::read_to_string(&cache_path).expect(constants::UNABLE_TO_READ_FILE);
             let mut login_info = LoginInfo::new();
             if fs::metadata(&cache_path).unwrap().len() != 0 {
                 login_info = serde_json::from_str(&string_data)?;
@@ -35,12 +35,12 @@ pub fn login(email: &str, password: &str) -> Result<(), Box<dyn Error>>{
             login_info.name = user.clone().name;
             let cache_json = serde_json::to_string(&login_info)?;
 
-            fs::write(&cache_path, &cache_json).expect("Unable write to file");
+            fs::write(&cache_path, &cache_json).expect(constants::UNABLE_WRITE_TO_FILE);
 
-            println!("login success.");
+            println!("{}", constants::LOGIN_SUCCESS);
         },
         None => {
-            println!("user does not exist.")
+            println!("{}",constants::LOGIN_FAILED)
         }
     }
 
@@ -50,16 +50,16 @@ pub fn login(email: &str, password: &str) -> Result<(), Box<dyn Error>>{
 pub fn logout() -> Result<(), Box<dyn Error>>{
     let cache_path = Path::new(constants::CACHE_FILE);
     if fs::metadata(&cache_path).is_err() {
-        println!("logout success.");
+        println!("{}",constants::LOGOUT_SUCCESS);
         return Ok(());
     }
 
     let login_info = LoginInfo::new();
     let cache_json = serde_json::to_string(&login_info)?;
 
-    fs::write(&cache_path, &cache_json).expect("Unable write to file");
+    fs::write(&cache_path, &cache_json).expect(constants::UNABLE_WRITE_TO_FILE);
 
-    println!("logout success.");
+    println!("{}",constants::LOGOUT_SUCCESS);
 
     Ok(())
 }

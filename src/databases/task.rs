@@ -13,13 +13,13 @@ use crate::constants;
 pub fn add_task(content: &str) -> Result<()>{
     let current_user = get_current_user();
     if current_user.is_none() {
-        println!("Please login.");
+        println!("{}",constants::ASK_FOR_LOGIN);
         return Ok(());
     }
 
     let user_id = current_user.unwrap().id;
 
-    let path = file_path();
+    let path = file_path(constants::TASKS_FILE);
     OpenOptions::new()
         .read(true)
         .write(true)
@@ -33,13 +33,13 @@ pub fn add_task(content: &str) -> Result<()>{
             tasks.push(task);
 
             let json: String = serde_json::to_string(&tasks)?;
-            fs::write(&path, &json).expect("Unable write to file");
+            fs::write(&path, &json).expect(constants::UNABLE_WRITE_TO_FILE);
             println!("{id}. {content}", id = id, content = content);
             println!("Item {id} added", id = id);
 
         },
         Err(_) => {
-            println!("get json metadata wrong.");
+            println!("{}",constants::GET_FILE_DATA_WRONG);
         }
     }
 
@@ -49,13 +49,13 @@ pub fn add_task(content: &str) -> Result<()>{
 pub fn finish_task(id: i32) -> Result<()>{
     let current_user = get_current_user();
     if current_user.is_none() {
-        println!("Please login.");
+        println!("{}",constants::ASK_FOR_LOGIN);
         return Ok(());
     }
 
     let user_id = current_user.unwrap().id;
 
-    let path = file_path();
+    let path = file_path(constants::TASKS_FILE);
 
     match get_metadata(path) {
         Ok(mut tasks) => {
@@ -65,18 +65,18 @@ pub fn finish_task(id: i32) -> Result<()>{
                     task.updated_at = chrono::offset::Utc::now();
                 }
                 None => {
-                    println!("task does not exist");
+                    println!("{}",constants::TASK_DOES_NOT_EXIST);
                     return Ok(());
                 }
             }
 
             let json = serde_json::to_string_pretty(&tasks)?;
-            fs::write(&path, &json).expect("Unable write to file");
+            fs::write(&path, &json).expect(constants::UNABLE_WRITE_TO_FILE);
 
             println!("Item {id} done.", id=id);
         },
         Err(_) => {
-            println!("get json metadata wrong.");
+            println!("{}",constants::GET_FILE_DATA_WRONG);
         }
     }
 
@@ -86,13 +86,13 @@ pub fn finish_task(id: i32) -> Result<()>{
 pub fn get_tasks() -> Result<()> {
     let current_user = get_current_user();
     if current_user.is_none() {
-        println!("Please login.");
+        println!("{}",constants::ASK_FOR_LOGIN);
         return Ok(());
     }
 
     let user_id = current_user.unwrap().id;
 
-    let path = file_path();
+    let path = file_path(constants::TASKS_FILE);
 
     match get_metadata(path) {
         Ok(tasks) => {
@@ -130,7 +130,7 @@ pub fn get_tasks() -> Result<()> {
 
         },
         Err(_) => {
-            println!("get json metadata wrong.");
+            println!("{}",constants::GET_FILE_DATA_WRONG);
         }
     }
 
@@ -140,12 +140,12 @@ pub fn get_tasks() -> Result<()> {
 pub fn get_unfinished_tasks() -> Result<()> {
     let current_user = get_current_user();
     if current_user.is_none() {
-        println!("Please login.");
+        println!("{}",constants::ASK_FOR_LOGIN);
         return Ok(());
     }
     let user_id = current_user.unwrap().id;
 
-    let path = file_path();
+    let path = file_path(constants::TASKS_FILE);
 
     match get_metadata(path) {
         Ok(tasks) => {
@@ -165,7 +165,7 @@ pub fn get_unfinished_tasks() -> Result<()> {
             println!("Total: {total} {word}", total = total, word = word);
         },
         Err(_) => {
-            println!("get json metadata wrong.");
+            println!("{}",constants::GET_FILE_DATA_WRONG);
         }
     }
 
@@ -175,12 +175,12 @@ pub fn get_unfinished_tasks() -> Result<()> {
 pub fn export_tasks(file_name: &str) -> Result<()> {
     let current_user = get_current_user();
     if current_user.is_none() {
-        println!("Please login.");
+        println!("{}",constants::ASK_FOR_LOGIN);
         return Ok(());
     }
 
     if fs::metadata(constants::TASKS_FILE).is_err() {
-        println!("There is not task");
+        println!("{}", constants::NOT_TASK);
         return Ok(())
     }
 
@@ -191,7 +191,7 @@ pub fn export_tasks(file_name: &str) -> Result<()> {
     let download_file_path = &format!("{download_dir}/{file_name}.json",
                                      download_dir = constants::DOWNLOAD_DIR,
                                      file_name = file_name);
-    let download_path = Path::new(download_file_path);
+    let download_path = file_path(download_file_path);
     OpenOptions::new()
         .read(true)
         .write(true)
@@ -199,7 +199,7 @@ pub fn export_tasks(file_name: &str) -> Result<()> {
         .open(&download_path);
 
     let user_id = current_user.unwrap().id;
-    let original_path = file_path();
+    let original_path = file_path(constants::TASKS_FILE);
     match get_metadata(original_path) {
         Ok(tasks) => {
             let download_tasks: Vec<Task> = tasks
@@ -209,14 +209,14 @@ pub fn export_tasks(file_name: &str) -> Result<()> {
                 .collect();
 
             let json: String = serde_json::to_string(&download_tasks)?;
-            fs::write(&download_path, &json).expect("Unable write to file");
+            fs::write(&download_path, &json).expect(constants::UNABLE_WRITE_TO_FILE);
 
             let total = download_tasks.len();
             let word = get_singular_plural(total, "item".to_string());
             println!("Export success. {total} {word} exported.", total = total, word = word);
         },
         Err(_) => {
-            println!("get json metadata wrong.");
+            println!("{}",constants::GET_FILE_DATA_WRONG);
         }
     }
 
@@ -226,23 +226,24 @@ pub fn export_tasks(file_name: &str) -> Result<()> {
 pub fn import_tasks(file_name: &str) -> Result<()> {
     let current_user = get_current_user();
     if current_user.is_none() {
-        println!("Please login.");
+        println!("{}",constants::ASK_FOR_LOGIN);
         return Ok(());
     }
 
-    if !file_name.ends_with(".json") {
-        println!("File must ends with .json");
+    if !file_name.ends_with(constants::IMPORT_FILE_SUFFIX) {
+        println!("{}",constants::ASK_FOR_JSON_FILE);
         return Ok(());
     }
     if fs::metadata(file_name).is_err() {
-        println!("File does not exist");
+        println!("{}",constants::FILE_NOT_EXIST);
         return Ok(());
     }
 
-    let waiting_task_path = Path::new(file_name);
+    // let waiting_task_path = Path::new(file_name);
+    let waiting_task_path = file_path(file_name);
     match get_metadata(waiting_task_path) {
         Ok(waiting_tasks) => {
-            let task_file_path = &file_path();
+            let task_file_path = file_path(constants::TASKS_FILE);
             if fs::metadata(constants::TASKS_FILE).is_err() {
                 OpenOptions::new()
                     .read(true)
@@ -267,12 +268,12 @@ pub fn import_tasks(file_name: &str) -> Result<()> {
             }
 
             let json: String = serde_json::to_string(&tasks)?;
-            fs::write(&task_file_path, &json).expect("Unable write to file");
+            fs::write(&task_file_path, &json).expect(constants::UNABLE_WRITE_TO_FILE);
 
             println!("Import success, success {}, failed {}", success_count, fail_count);
         },
         Err(_) => {
-            println!("get json metadata wrong.");
+            println!("{}",constants::GET_FILE_DATA_WRONG);
         }
     }
 
@@ -280,8 +281,8 @@ pub fn import_tasks(file_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn file_path() -> &'static Path {
-    Path::new(constants::TASKS_FILE)
+fn file_path(file_name: &str) -> &Path {
+    Path::new(file_name)
 }
 
 fn get_metadata(path: &Path) -> Result<Vec<Task>> {
