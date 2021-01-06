@@ -172,6 +172,114 @@ pub fn get_unfinished_tasks() -> Result<()> {
     Ok(())
 }
 
+pub fn export_tasks(file_name: &str) -> Result<()> {
+    let current_user = get_current_user();
+    if current_user.is_none() {
+        println!("Please login.");
+        return Ok(());
+    }
+
+    if fs::metadata(constants::TASKS_FILE).is_err() {
+        println!("There is not task");
+        return Ok(())
+    }
+
+    if fs::metadata(constants::DOWNLOAD_DIR).is_err() {
+        fs::create_dir(constants::DOWNLOAD_DIR);
+    }
+
+    let download_file_path = &format!("{download_dir}/{file_name}.json",
+                                     download_dir = constants::DOWNLOAD_DIR,
+                                     file_name = file_name);
+    let download_path = Path::new(download_file_path);
+    OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&download_path);
+
+    let user_id = current_user.unwrap().id;
+    let original_path = file_path();
+    match get_metadata(original_path) {
+        Ok(tasks) => {
+            let download_tasks: Vec<Task> = tasks
+                .iter()
+                .filter(|task| task.user_id == user_id)
+                .cloned()
+                .collect();
+
+            let json: String = serde_json::to_string(&download_tasks)?;
+            fs::write(&download_path, &json).expect("Unable write to file");
+
+            let total = download_tasks.len();
+            let word = get_singular_plural(total, "item".to_string());
+            println!("Export success. {total} {word} exported.", total = total, word = word);
+        },
+        Err(_) => {
+            println!("get json metadata wrong.");
+        }
+    }
+
+    Ok(())
+}
+
+pub fn import_tasks(file_name: &str) -> Result<()> {
+    let current_user = get_current_user();
+    if current_user.is_none() {
+        println!("Please login.");
+        return Ok(());
+    }
+
+    if !file_name.ends_with(".json") {
+        println!("File must ends with .json");
+        return Ok(());
+    }
+    if fs::metadata(file_name).is_err() {
+        println!("File does not exist");
+        return Ok(());
+    }
+
+    let waiting_task_path = Path::new(file_name);
+    match get_metadata(waiting_task_path) {
+        Ok(waiting_tasks) => {
+            let task_file_path = &file_path();
+            if fs::metadata(constants::TASKS_FILE).is_err() {
+                OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .open(&task_file_path);
+            }
+
+            let mut tasks = get_metadata(task_file_path).unwrap();
+            let mut success_count = 0;
+            let mut fail_count = 0;
+            for waiting_task in waiting_tasks.iter() {
+                // 如果两条 task 的 id, user_id, content 同时相同，即认为是重复数据，不执行导入
+                if tasks
+                    .iter()
+                    .any(|task| task.id == waiting_task.id && task.user_id == waiting_task.user_id && task.content == waiting_task.content) {
+                    fail_count += 1;
+                    continue;
+                }
+                success_count += 1;
+                tasks.push(waiting_task.clone());
+            }
+
+            let json: String = serde_json::to_string(&tasks)?;
+            fs::write(&task_file_path, &json).expect("Unable write to file");
+
+            println!("Import success, success {}, failed {}", success_count, fail_count);
+        },
+        Err(_) => {
+            println!("get json metadata wrong.");
+        }
+    }
+
+
+    Ok(())
+}
+
 fn file_path() -> &'static Path {
     Path::new(constants::TASKS_FILE)
 }

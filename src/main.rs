@@ -1,10 +1,11 @@
-use std::{env, fs};
+use std::fs;
 use std::io::{stdin, stdout, Write};
 
 use structopt::StructOpt;
 
 use databases::{task, user};
 use constants::TMP_DIR;
+use std::collections::HashMap;
 
 mod constants;
 mod databases;
@@ -59,6 +60,18 @@ fn handle_task_action(arg: Task) {
         task::get_unfinished_tasks();
         return;
     }
+    if arg.export {
+        if arg.target.is_some() {
+            task::export_tasks(&arg.target.unwrap());
+            return;
+        }
+    }
+    if arg.import {
+        if arg.file.is_some() {
+            task::import_tasks(&arg.file.unwrap());
+            return;
+        }
+    }
 }
 
 #[derive(Debug, StructOpt)]
@@ -86,6 +99,19 @@ pub struct Task {
 
     #[structopt(long)]
     pub all: bool,
+
+    #[structopt(short, long)]
+    pub export: bool,
+
+    #[structopt(short, long)]
+    pub target: Option<String>,
+
+    #[structopt(short, long)]
+    pub import: bool,
+
+    #[structopt(short, long)]
+    pub file: Option<String>,
+
 }
 
 #[derive(Debug, StructOpt)]
