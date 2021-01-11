@@ -43,6 +43,21 @@ cargo run -- todo --import -f files/tasks.json
 // 待导入文件中数据格式
 [{"id":1,"content":"first list","finished":false,"user_id":1,"created_at":"2021-01-05T08:58:22.928983Z","updated_at":"2021-01-05T08:58:36.712812Z"}]
 ```
+- 初始化数据库
+```
+cargo run -- todo --init
+```
 ## 项目文件说明
 - 代码文件 `src` 目录下
 - 开发分析设计文档 `docs` 目录下
+- database `Postgres`
+
+## 使用数据库持久化数据
+- 重命名`.env.sample` 为 `.env`，修改文件中数据库配置信息；
+- 命令: 
+```
+diesel setup // 创建数据库
+```
+```
+diesel migration run // 执行 migration 迁移文件
+```
